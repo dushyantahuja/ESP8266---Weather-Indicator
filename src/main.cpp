@@ -13,40 +13,46 @@
 AsyncWebServer httpServer(80);
 DNSServer dns;
 
-#define DEBUG
+//#define DEBUG
 
 #include <NTPClient.h>
-//#include <ArduinoJson.h>
-#include <IPGeolocation.h>
-String IPGeoKey = "b294be4d4a3044d9a39ccf42a564592b";
-
-#include "SimpleWeather.h"
-String DKey = "411755509e9a5b74a4b5dfe1ffd91f53";
-
-
-#define FASTLED_INTERNAL
-#define FASTLED_ESP8266_RAW_PIN_ORDER
-//#define FASTLED_ESP8266_D1_PIN_ORDER
-#define FASTLED_ALLOW_INTERRUPTS 0
-#include "FastLED.h"
-#include "EEPROM.h"
-
-//#include "palette.h"
-#include "config.h"
-#include "Page_Admin.h"
 
 // NTP Servers:
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", 0, 360000); //19800
 
+//#include <ArduinoJson.h>
+#include <IPGeolocation.h>
+String IPGeoKey = "b294be4d4a3044d9a39ccf42a564592b";
+
+#include "SimpleWeather.h"
+String DKey = "411755509e9a5b74a4b5dfe1ffd91f53";
+weatherData w;
+
+#define FASTLED_INTERNAL
+#define FASTLED_ESP8266_RAW_PIN_ORDER
+//#define FASTLED_ESP8266_D1_PIN_ORDER
+#define FASTLED_ALLOW_INTERRUPTS 0
+#include "FastLED.h"
+CRGB r[3],t[3];
+CRGBPalette16 tpalette, rpalette;
+
+#include "EEPROM.h"
+
+//#include "palette.h"
+#include "config.h"
+#include "Page_Admin.h"
+
+
+
 void setup() {
     // put your setup code here, to run once:
     delay(3000);
-    Serial.begin(9600);
-    FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
+    Serial.begin(115200);
+    FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS).setCorrection(TypicalSMD5050);
     fill_rainbow(leds, NUM_LEDS,4);
-    FastLED.setBrightness(20);
+    FastLED.setBrightness(BRIGHTNESS);
     FastLED.show();
     if(!SPIFFS.begin()){
       Serial.println("An Error has occurred while mounting SPIFFS");
@@ -104,33 +110,64 @@ void setup() {
 
     MDNS.addService("http", "tcp", 80);
     timeClient.begin();
-
-    EEPROM.begin(512);
-
-    if (EEPROM.read(109) != 4) saveDefaults();
-    // Else read the parameters from the EEPROM
-    else loadDefaults();
+    timeClient.update();
     getWeather();
+    /*t[0]=CRGB::DarkRed;
+    t[1]=CRGB::Violet;
+    t[2]=CRGB::Blue;
+    r[0]=CRGB::LightSkyBlue;
+    r[1]=CRGB::Green;
+    r[2]=CRGB::OrangeRed;*/
     wdt_enable(WDTO_8S);
 }
 
+uint8_t step = 255;
+
 void loop() {
     timeClient.update();
-    if(timeClient.getMinutes() == 0 && timeClient.getSeconds() == 0) getWeather(); //Get weather update every hour. 
-    //FastLED.show();
-    FastLED.delay(1000 / UPDATES_PER_SECOND);
+
+    EVERY_N_MILLISECONDS(1000/UPDATES_PER_SECOND){
+
+      for(int i=0; i< NUM_LEDS/4; i++){
+        leds[i] = t[0];
+        leds[i+NUM_LEDS/4]=t[1];
+        //leds[i+NUM_LEDS/6*2]=t[2];
+        leds[i+NUM_LEDS/4*2]=r[0];
+        leds[i+NUM_LEDS/4*3]=r[1];
+        //leds[i+NUM_LEDS/6*5]=r[2];
+      }
+      for(int i=0; i<NUM_LEDS; i++){
+        leds[i].nscale8_video(cubicwave8(i*5+step*2));
+      }
+      //fill_palette(ledt, NUM_LEDS/2, 0, 1, tpalette, BRIGHTNESS, NOBLEND);
+      //fill_palette(ledr, NUM_LEDS/2, 0, 1, rpalette, BRIGHTNESS, NOBLEND);
+      //colorwaves( ledt, NUM_LEDS/2, tpalette);
+      //colorwaves( ledr, NUM_LEDS/2, rpalette);
+      /*for(uint8_t i=0; i< NUM_LEDS/2; i++){
+        ledt[i] = ColorFromPalette(tpalette, (uint8_t)(i/(NUM_LEDS/2)*255), cubicwave8(i*15+step*2), NOBLEND);
+        ledr[i] = ColorFromPalette(rpalette, (uint8_t)(i/(NUM_LEDS/2)*255), cubicwave8(i*15+step*2), NOBLEND);
+      }*/
+      step--;
+      if(timeClient.getHours() >= 22 || timeClient.getHours() < 7) fill_solid( leds, NUM_LEDS, CRGB::Black);
+      else {
+        if(timeClient.getMinutes() == 0 && timeClient.getSeconds() == 0) getWeather(); //Get weather update every hour. 
+        else if((timeClient.getMinutes() % 5) == 0 && timeClient.getSeconds() == 0) effects();
+      }
+      FastLED.show();
+    }
     if(timeClient.getHours() == 3 && timeClient.getMinutes() == 0 && timeClient.getSeconds() == 0)
       ESP.restart();
     yield();
 }
 
 void getWeather() {
-  weatherData w;
-  CRGB t[3],r[3];
+  fill_rainbow(leds, NUM_LEDS,4);
+  FastLED.setBrightness(BRIGHTNESS);
+  FastLED.show();
   Darksky ds(DKey,config.latitude,config.longitude);
-  for(int i = 0; i < 1; i++){
+  for(int i = 0; i < 2; i++){
     DEBUG_PRINT(String(timeClient.getEpochTime()));
-    ds.updateURL(DKey,config.latitude,config.longitude,timeClient.getEpochTime()+i*3600);
+    ds.updateURL(DKey,config.latitude,config.longitude,timeClient.getEpochTime()+i*3600*2); // Get data for every 2 hours
     ds.updateStatus(&w);
     DEBUG_PRINT("Temp: ");
     DEBUG_PRINT(String(w.current_Temp));
@@ -138,29 +175,25 @@ void getWeather() {
     DEBUG_PRINT(String(w.rain));
     DEBUG_PRINT("Icon: ");
     DEBUG_PRINT(w.weather);
-    if(w.current_Temp < 5) t[i] = CRGB::BlueViolet;       
-      else if (w.current_Temp <10) t[i] = CRGB::DarkBlue;
-      else if (w.current_Temp <15) t[i] = CRGB::Blue;
+    if (w.current_Temp < 0) t[i] = CRGB::DarkViolet;
+      else if (w.current_Temp < 5) t[i] = CRGB::Violet;       
+      else if (w.current_Temp <10) t[i] = CRGB::Navy;
+      else if (w.current_Temp <15) t[i] = CRGB::RoyalBlue;
       else if (w.current_Temp <20) t[i] = CRGB::Green;
-      else if (w.current_Temp <25) t[i] = CRGB::Orange; 
-      else t[i] = CRGB::OrangeRed; 
+      else if (w.current_Temp <25) t[i] = CRGB::OrangeRed; 
+      else t[i] = CRGB::DarkRed; 
     if(w.weather == "snow") r[i] = CRGB::Violet;
       else if (w.rain >= 0.7) r[i] = CRGB::Blue;
-      else if (w.weather == "cloudy") r[i] = CRGB::LightBlue;
+      else if (w.weather == "cloudy") r[i] = CRGB::LightSkyBlue;
       else r[i] = CRGB::Green;
-    //message += "Darksky Response:\n";
-    //message += ds.getResponse().c_str();
-    FastLED.show();
+    message+= "---------------\n";
+    message+= "Current Temperature: " + String(w.current_Temp) + "\n";
+    message+= "Rainfall Probability: " + String(w.rain) + "\n";
+    message+= "Weather: " + w.weather + "\n";
+    message+= "---------------\n";
     yield();
     delay(500);
-  }
-  for(int i = 0; i < 3; i++){
-    for(int j = 0; j < 10; j++){
-      leds[i*10+j]=t[i];
-      leds[i*10+j+30]=r[i];
-      //delay(20);
-    }
-  }  
+  } 
 }
 
 void effects(){
@@ -178,6 +211,9 @@ void effects(){
 }
 
 void handleNotFound(AsyncWebServerRequest *request){
+  message+= "Current Temperature: " + String(w.current_Temp) + "\n";
+  message+= "Rainfall Probability: " + String(w.rain) + "\n";
+  message+= "Weather: " + w.weather + "\n";
   message+= "Time: ";
   message+= String(timeClient.getHours()) + ":" + String(timeClient.getMinutes())+ ":" + String(timeClient.getSeconds()) + "\n";
   message += "URI: ";

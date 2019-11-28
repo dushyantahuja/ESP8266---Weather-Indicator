@@ -1,8 +1,9 @@
 #define NUM_LEDS 60
 #define DATA_PIN D2
-#define UPDATES_PER_SECOND 50
+#define UPDATES_PER_SECOND 40
 #define DEVICE_NAME London
 #define GET_VARIABLE_NAME(Variable) (#Variable).cstr()
+#define BRIGHTNESS 180
 
 #ifndef DEBUG_PRINT
   #ifdef DEBUG
@@ -24,6 +25,8 @@ void handleDoUpdate(AsyncWebServerRequest *request, const String& filename, size
 void getWeather();
 
 CRGBArray<NUM_LEDS> leds;
+CRGBSet ledt(leds(0,NUM_LEDS/2-1));
+CRGBSet ledr(leds(NUM_LEDS/2,NUM_LEDS));
 String message;
 
 struct strConfig {
@@ -117,8 +120,8 @@ void handleDoUpdate(AsyncWebServerRequest *request, const String& filename, size
     } else {
       DEBUG_PRINT("Update complete");
       AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", "Please wait while the device reboots");
-      response->addHeader("Refresh", "20;url=/"); 
-      response->addHeader("Location", "/"); 
+      response->addHeader("Refresh", "15; url=/"); 
+      //response->addHeader("Location", "/"); 
       response->addHeader("Connection", "close");
       request->send(response);
       Serial.flush();
