@@ -18,10 +18,10 @@ DNSServer dns;
 #include <NTPClient.h>
 //#include <ArduinoJson.h>
 #include <IPGeolocation.h>
-String IPGeoKey = "b294be4d4a3044d9a39ccf42a564592b";
+String IPGeoKey = "XXXXX";
 
 #include "SimpleWeather.h"
-String DKey = "411755509e9a5b74a4b5dfe1ffd91f53";
+String DKey = "XXXXXX";
 
 
 #define FASTLED_INTERNAL
