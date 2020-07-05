@@ -1,0 +1,52 @@
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<script src="jscolor.js"></script>
+
+<body>
+  <a href="/" class="btn btn--s">&LT</a>
+  &nbsp;&nbsp;<strong>Configuration</strong>
+  <hr>
+  <form action="/config.html" method="get">
+    <table border="0" cellspacing="0" cellpadding="3" style="width:300px">
+      <tr>
+        <th align="left" colspan="2"><strong>City</strong></th>
+      </tr>
+      <tr>
+        <td align="right">Auto Location</td>
+        <td><input type="checkbox" id="autolocation" name="autolocation" value="autolocation" onclick="document.getElementById('latitude').disabled=this.checked;
+          document.getElementById('longitude').disabled=this.checked;"></td>
+      </tr>
+      <tr>
+        <td align="right">Latitude</td>
+        <td><input type="text" id="latitude" name="latitude" value="" style="width: 80px;"></td>
+      </tr>
+      <tr>
+        <td align="right">Longitude</td>
+        <td><input type="text" id="longitude" name="longitude" value="" style="width: 80px;"></td>
+      </tr>
+      </tr>
+    </table>
+  </form>
+
+  <hr>
+  </table>
+
+  <a href="admin/config" class="btn btn--s">&GT</a>
+  <a href="microajax.js" class="btn btn--s">&GT&GT</a>
+</body>
+<script>
+
+  window.onload = function () {
+    load("style.css", "css", function () {
+      load("microajax.js", "js", function () {
+        setValues("admin/config");
+      });
+    });
+  }
+  setTimeout(function () {
+    document.getElementById('latitude').disabled = document.getElementById('autolocation').checked;
+    document.getElementById('longitude').disabled = document.getElementById('autolocation').checked;
+  }, 1000);
+
+  function load(e, t, n) { if ("js" == t) { var a = document.createElement("script"); a.src = e, a.type = "text/javascript", a.async = !1, a.onload = function () { n() }, document.getElementsByTagName("head")[0].appendChild(a) } else if ("css" == t) { var a = document.createElement("link"); a.href = e, a.rel = "stylesheet", a.type = "text/css", a.async = !1, a.onload = function () { n() }, document.getElementsByTagName("head")[0].appendChild(a) } }
+</script>

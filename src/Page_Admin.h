@@ -6,8 +6,7 @@ const char PAGE_AdminMainPage[] PROGMEM = R"=====(
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <strong>Administration</strong>
 <hr>
-<a href="weather.html" style="width:250px" class="btn btn--m btn--blue" >Weather Configuration</a><br>
-<a href="color.html" style="width:250px" class="btn btn--m btn--blue" >Choose Colors</a><br>
+<a href="config.html" style="width:250px" class="btn btn--m btn--blue" >Weather Configuration</a><br>
 <a href="update" style="width:250px" class="btn btn--m btn--blue" >Upload New Firmware</a><br>
 <script>
 window.onload = function ()
