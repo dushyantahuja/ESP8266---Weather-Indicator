@@ -1,9 +1,9 @@
-#define NUM_LEDS 26
-#define DATA_PIN D4
+#define NUM_LEDS 17
+#define DATA_PIN D2
 #define UPDATES_PER_SECOND 40
-#define DEVICE_NAME "TemperatureDisplay"
+#define DEVICE_NAME "TemperatureDisplay1"
 #define GET_VARIABLE_NAME(Variable) (#Variable).cstr()
-#define BRIGHTNESS 180
+#define BRIGHTNESS 100
 
 #ifndef DEBUG_PRINT
 #ifdef DEBUG
@@ -14,6 +14,11 @@
 #endif
 
 // Function Definitions
+
+DEFINE_GRADIENT_PALETTE(temperature_gp){0, 1, 27, 105, 14, 1, 27, 105, 14, 1, 40, 127, 28, 1, 40, 127, 28, 1, 70, 168, 42, 1, 70, 168, 42, 1, 92, 197, 56, 1, 92, 197, 56, 1, 119, 221, 70, 1, 119, 221, 70, 3, 130, 151, 84, 3, 130, 151, 84, 23, 156, 149, 99, 23, 156, 149, 99, 67, 182, 112, 113, 67, 182, 112, 113, 121, 201, 52, 127, 121, 201, 52, 127, 142, 203, 11, 141, 142, 203, 11, 141, 224, 223, 1, 155, 224, 223, 1, 155, 252, 187, 2, 170, 252, 187, 2, 170, 247, 147, 1, 184, 247, 147, 1, 184, 237, 87, 1, 198, 237, 87, 1, 198, 229, 43, 1, 212, 229, 43, 1, 212, 220, 15, 1, 226, 220, 15, 1, 226, 171, 2, 2, 240, 171, 2, 2, 240, 80, 3, 3, 255, 80, 3, 3};
+
+
+CRGBPalette16 gCurrentPalette(temperature_gp);
 
 void handleNotFound(AsyncWebServerRequest *request);
 void colorwaves(CRGB *ledarray, uint16_t numleds, CRGBPalette16 &palette);
@@ -26,8 +31,8 @@ void send_configuration_html(AsyncWebServerRequest *request);
 void send_configuration_values_html(AsyncWebServerRequest *request);
 
 CRGBArray<NUM_LEDS> leds;
-CRGBSet ledt(leds(0, NUM_LEDS / 2 - 1));
-CRGBSet ledr(leds(NUM_LEDS / 2, NUM_LEDS));
+CRGBSet ledr(leds(0, 7));
+CRGBSet ledt(leds(8, NUM_LEDS));
 String message;
 
 struct strConfig
@@ -40,29 +45,33 @@ struct strConfig
 
 bool saveDefaults()
 {
-  { // Check if colours have been set or not
-    /*
-
-      EEPROM.write(12, 0);                   // Light sensitivity - low
-      EEPROM.write(13, 65);                  // Light sensitivity - high
-      EEPROM.write(14, 30);                  // Minutes for each rainbow
-      EEPROM.write(15, 2);                    // Current Palette
-      EEPROM.write(16,22);                    // Switch Off
-      EEPROM.write(17,7);                     // Switch On
-      EEPROM.write(18,64);                     //lines colour
-      EEPROM.write(19,64);
-      EEPROM.write(20,50);
-      EEPROM.write(109,4);
-      EEPROM.commit();*/
-  }
+  EEPROM.put(20,0.00);
+  EEPROM.put(28,0.00);
+  EEPROM.put(32,config.autolocation);
+  EEPROM.write(110,4);
+  EEPROM.commit();
+  //EEPROM.update();
   return true;
 }
 
 bool loadDefaults()
 {
-  config.latitude = 51.5074;
-  config.longitude = 0.1278;
-  config.autolocation = true;
+  if (EEPROM.read(110) != 4)
+  {
+    /*config.latitude = 51.5074;
+    config.longitude = 0.1278;*/
+    config.autolocation = true;
+    saveDefaults();
+  }
+  else
+  {
+    EEPROM.get(20,config.latitude);
+    EEPROM.get(28,config.longitude);
+    EEPROM.get(32,config.autolocation);
+  }
+  DEBUG_PRINT(String(config.autolocation));
+  DEBUG_PRINT(String(config.latitude));
+  DEBUG_PRINT(String(config.longitude));
   return true;
 }
 
@@ -181,4 +190,15 @@ void colorwaves(CRGB *ledarray, uint16_t numleds, CRGBPalette16 &palette)
 
     nblend(ledarray[pixelnumber], newcolor, 128);
   }
+}
+
+// Based on information from https://www.hackster.io/detox/send-esp8266-data-to-your-webpage-no-at-commands-7ebfec?f=1#code
+
+void sendIP(){
+  WiFiClient client;
+  HTTPClient http;
+  String url_ahuja = "http://ahuja.ws/esp.php?ESP=" DEVICE_NAME "&IP="+ WiFi.localIP().toString();
+  http.begin(client, url_ahuja);
+  http.GET();
+  http.end();
 }
