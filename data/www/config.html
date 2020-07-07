@@ -3,41 +3,45 @@
 <script src="jscolor.js"></script>
 
 <a href="/" class="btn btn--s">&LT</a>
-&nbsp;&nbsp;<strong>Configuration</strong>
+&nbsp;&nbsp;<strong>Configuration</strong><br>
+<strong><input type="text" id="city" name="city" style="width: 200px" disabled = "true"></strong>
 <hr>
-<form action="/config.html" method="get">
+<form action="/config.html" method="post">
   <table border="0" cellspacing="0" cellpadding="3" style="width:300px">
     <tr>
-      <th align="left" colspan="2"><strong>City</strong></th>
-    </tr>
-    <tr>
       <td align="right">Auto Location</td>
-      <td><input type="checkbox" id="autolocation" name="autolocation" value="autolocation" onclick="document.getElementById('latitude').disabled=this.checked;
+      <td><input type="checkbox" id="autolocation" name="autolocation" value="true" onclick="document.getElementById('latitude').disabled=this.checked;
           document.getElementById('longitude').disabled=this.checked;"></td>
     </tr>
     <tr>
       <td align="right">Latitude</td>
-      <td><input type="text" id="latitude" name="latitude" value="" style="width: 80px;"></td>
+      <td><input type="number" id="latitude" name="latitude" value="" max = "90" min = "-90" style="width: 80px;" step="0.00001"></td>
     </tr>
     <tr>
       <td align="right">Longitude</td>
-      <td><input type="text" id="longitude" name="longitude" value="" style="width: 80px;"></td>
+      <td><input type="number" id="longitude" name="longitude" value="" max = "180" min = "-180" style="width: 80px;" step="0.00001"></td>
     </tr>
-    <tr><td colspan="2" align="center"><input type="submit" style="width:150px" class="btn btn--m btn--blue" value="Save"></td></tr>
+    <tr>
+      <td colspan="2"><small>Values in the western hemisphere are -ve</small></td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><input type="submit" style="width:150px" class="btn btn--m btn--blue" value="Save">
+      </td>
+    </tr>
   </table>
 </form>
 
 <hr>
 </table>
 
-<a href="admin/config" class="btn btn--s">&GT</a>
+<a href="/admin/config" class="btn btn--s">&GT</a>
 <a href="microajax.js" class="btn btn--s">&GT&GT</a>
 <script>
 
   window.onload = function () {
     load("style.css", "css", function () {
       load("microajax.js", "js", function () {
-        setValues("admin/config");
+        setValues("/admin/config");
       });
     });
   }
