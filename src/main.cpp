@@ -44,6 +44,7 @@ CRGBPalette16 tpalette, rpalette;
 #include "EEPROM.h"
 
 //#include "palette.h"
+char DEVICE_NAME[255];
 #include "config.h"
 #include "Page_Admin.h"
 
@@ -60,6 +61,17 @@ void setup()
   {
     Serial.println("An Error has occurred while mounting SPIFFS");
     return;
+  }
+  File file = SPIFFS.open(filename, "r");
+  if (!file)
+  {
+    Serial.println("file open failed");
+  }
+  else
+  {
+    int l = file.readBytesUntil('\n', DEVICE_NAME, sizeof(DEVICE_NAME));
+    DEVICE_NAME[l] = 0;
+    Serial.println(DEVICE_NAME);
   }
   DEBUG_PRINT("Wifi Setup Initiated");
   WiFi.setAutoConnect(true);

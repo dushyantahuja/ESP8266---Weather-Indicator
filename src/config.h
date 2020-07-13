@@ -1,7 +1,8 @@
 #define NUM_LEDS 17
 #define DATA_PIN D2
 #define UPDATES_PER_SECOND 60
-#define DEVICE_NAME "TemperatureDisplay1"
+//#define DEVICE_NAME "TemperatureDisplay4" // Use deviceid.txt on SPIFFS instead
+const char* fwUrlBase = "http://ahuja.ws/firmware/TemperatureDisplay";
 #define GET_VARIABLE_NAME(Variable) (#Variable).cstr()
 #define BRIGHTNESS 120
 
@@ -220,8 +221,69 @@ void sendIP()
 {
   WiFiClient client;
   HTTPClient http;
-  String url_ahuja = "http://ahuja.ws/esp.php?ESP=" DEVICE_NAME "&IP=" + WiFi.localIP().toString();
+  String url_ahuja = "http://ahuja.ws/esp.php?ESP=" + DEVICE_NAME + "&IP=" + WiFi.localIP().toString();
   http.begin(client, url_ahuja);
   http.GET();
   http.end();
+}
+
+//Modified using code from https://www.bakke.online/index.php/2017/06/02/self-updating-ota-firmware-for-esp8266/
+
+void checkForUpdates() {
+  String mac = getMAC();
+  String fwURL = String( fwUrlBase );
+  fwURL.concat( mac );
+  String fwVersionURL = fwURL;
+  fwVersionURL.concat( ".version" );
+
+  Serial.println( "Checking for firmware updates." );
+  Serial.print( "MAC address: " );
+  Serial.println( mac );
+  Serial.print( "Firmware version URL: " );
+  Serial.println( fwVersionURL );
+
+  WiFiClient client;
+  HTTPClient httpClient;
+  httpClient.begin(client, fwVersionURL );
+  int httpCode = httpClient.GET();
+  if( httpCode == 200 ) {
+    String newFWVersion = httpClient.getString();
+
+    Serial.print( "Current firmware version: " );
+    Serial.println( FW_VERSION );
+    Serial.print( "Available firmware version: " );
+    Serial.println( newFWVersion );
+
+    int newVersion = newFWVersion.toInt();
+
+    if( newVersion > FW_VERSION ) {
+      Serial.println( "Preparing to update" );
+
+      String fwImageURL = fwURL;
+      fwImageURL.concat( ".bin" );
+      t_httpUpdate_return ret = ESPhttpUpdate.update( client, fwImageURL );
+
+      switch(ret) {
+        case HTTP_UPDATE_FAILED:
+          Serial.printf("HTTP_UPDATE_FAILD Error (%d): %s", ESPhttpUpdate.getLastError(), ESPhttpUpdate.getLastErrorString().c_str());
+          break;
+
+        case HTTP_UPDATE_NO_UPDATES:
+          Serial.println("HTTP_UPDATE_NO_UPDATES");
+          break;
+
+        case HTTP_UPDATE_OK:
+          Serial.println("HTTP_UPDATE_OK");
+          break;
+      }
+    }
+    else {
+      Serial.println( "Already on latest version" );
+    }
+  }
+  else {
+    Serial.print( "Firmware version check failed, got HTTP response code " );
+    Serial.println( httpCode );
+  }
+  httpClient.end();
 }
