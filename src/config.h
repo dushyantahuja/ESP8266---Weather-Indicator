@@ -2,6 +2,7 @@
 #define DATA_PIN D2
 #define UPDATES_PER_SECOND 60
 //#define DEVICE_NAME "TemperatureDisplay4" // Use deviceid.txt on SPIFFS instead
+const int FW_VERSION = 5;
 const char* fwUrlBase = "http://ahuja.ws/firmware/TemperatureDisplay";
 #define GET_VARIABLE_NAME(Variable) (#Variable).cstr()
 #define BRIGHTNESS 120
@@ -221,7 +222,7 @@ void sendIP()
 {
   WiFiClient client;
   HTTPClient http;
-  String url_ahuja = "http://ahuja.ws/esp.php?ESP=" + DEVICE_NAME + "&IP=" + WiFi.localIP().toString();
+  String url_ahuja = "http://ahuja.ws/esp.php?ESP=" + String(DEVICE_NAME) + "&IP=" + WiFi.localIP().toString();
   http.begin(client, url_ahuja);
   http.GET();
   http.end();
@@ -230,15 +231,15 @@ void sendIP()
 //Modified using code from https://www.bakke.online/index.php/2017/06/02/self-updating-ota-firmware-for-esp8266/
 
 void checkForUpdates() {
-  String mac = getMAC();
+  //String mac = getMAC();
   String fwURL = String( fwUrlBase );
-  fwURL.concat( mac );
+  //fwURL.concat( mac );
   String fwVersionURL = fwURL;
   fwVersionURL.concat( ".version" );
 
   Serial.println( "Checking for firmware updates." );
-  Serial.print( "MAC address: " );
-  Serial.println( mac );
+  //Serial.print( "MAC address: " );
+  //Serial.println( mac );
   Serial.print( "Firmware version URL: " );
   Serial.println( fwVersionURL );
 

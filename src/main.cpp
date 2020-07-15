@@ -8,6 +8,7 @@
 
 #include <ESPAsyncWiFiManager.h>
 #include <ESP8266HTTPClient.h>
+#include <ESP8266httpUpdate.h>
 #include <ESP8266mDNS.h>
 #include <SPIFFSEditor.h>
 
@@ -48,6 +49,7 @@ char DEVICE_NAME[255];
 #include "config.h"
 #include "Page_Admin.h"
 
+
 void setup()
 {
   // put your setup code here, to run once:
@@ -62,7 +64,7 @@ void setup()
     Serial.println("An Error has occurred while mounting SPIFFS");
     return;
   }
-  File file = SPIFFS.open(filename, "r");
+  File file = SPIFFS.open("/deviceid.txt", "r");
   if (!file)
   {
     Serial.println("file open failed");
@@ -113,9 +115,25 @@ void setup()
     //response->addHeader("Content-Encoding", "gzip");
     request->send(response);
   });
+  httpServer.on("/reboot", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", "rebooting\n");
+    delay(1000);
+    ESP.restart();
+  });
+  /*httpServer.on("/factory", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", "reseting wifi settings\n");
+    delay(1000);
+    wifiManager.resetSettings();
+    ESP.restart();
+  });*/
   httpServer.on("/config.html", HTTP_POST, send_configuration_html);
-  httpServer.on("/admin/config", HTTP_GET, send_configuration_values_html);
+  httpServer.on("/admin/config", HTTP_GET, send_weather_values_html);
   httpServer.on("/admin/weather", HTTP_GET, send_weather_values_html);
+  httpServer.on("/autoupdate", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", "Checking for Updates ...\n");
+    //delay(1000);
+    checkForUpdates();
+  });
   httpServer.on("/update", HTTP_GET, [](AsyncWebServerRequest *request) { handleUpdate(request); });
   httpServer.on(
       "/doUpdate", HTTP_POST,
@@ -139,9 +157,12 @@ void setup()
     config.longitude = I.longitude; //-0.22425; //
   }
   getWeather();
+  yield();
   timeClient.setTimeOffset(w[0].tz);
   timeClient.begin();
   timeClient.update();
+  yield();
+  //checkForUpdates();
   //wdt_enable(WDTO_8S);
 }
 
@@ -221,15 +242,17 @@ void loop()
       FastLED.show();
     }
   }
-  if (timeClient.getHours() == 3 && timeClient.getMinutes() == 0 && timeClient.getSeconds() == 0)
+  if (timeClient.getHours() == 3 && timeClient.getMinutes() == 0 && timeClient.getSeconds() == 0){
+    checkForUpdates();
     ESP.restart();
+  }
   yield();
   FastLED.show();
 }
 
 void getWeather()
 {
-
+  message = "";
   for (int i = 0; i < 2; i++)
   {
     DEBUG_PRINT("UnixTime: " + String(timeClient.getEpochTime()));
@@ -278,6 +301,7 @@ void handleNotFound(AsyncWebServerRequest *request)
   message += "Time: ";
   message += String(timeClient.getHours()) + ":" + String(timeClient.getMinutes()) + ":" + String(timeClient.getSeconds()) + "\n";
   message += w->city + "\n";
+  message += "Version: " + String(FW_VERSION) + "\n";
   message += "URI: ";
   message += request->url();
   message += "\nMethod: ";
@@ -303,6 +327,8 @@ void send_weather_values_html(AsyncWebServerRequest *request)
   values += "weather|" + w[0].description + "|input\n";
   values += "temp|" + String(w[0].current_Temp) + "|input\n";
   values += "forecast|" + String(w[1].current_Temp) + "|input\n";
+  if (config.autolocation)
+    values += "autolocation|true|chk\n";
   request->send(200, "text/plain", values);
 }
 
