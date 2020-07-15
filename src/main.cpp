@@ -53,12 +53,13 @@ char DEVICE_NAME[255];
 void setup()
 {
   // put your setup code here, to run once:
-  delay(3000);
   Serial.begin(115200);
   FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS).setCorrection(TypicalSMD5050);
   //fill_rainbow(leds, NUM_LEDS, 4);
   //FastLED.setBrightness(BRIGHTNESS);
-  //FastLED.show();
+  fill_solid(leds, NUM_LEDS, CRGB::Black);
+  FastLED.show();
+  delay(3000);
   if (!SPIFFS.begin())
   {
     Serial.println("An Error has occurred while mounting SPIFFS");
@@ -166,7 +167,7 @@ void setup()
   //wdt_enable(WDTO_8S);
 }
 
-uint8_t step = 255;
+uint8_t step = 0;
 
 void loop()
 {
@@ -198,7 +199,7 @@ void loop()
         getWeather(); //Get weather update every hour.
       else if ((timeClient.getMinutes() % 5) == 0 && timeClient.getSeconds() == 0)
         effects();
-      fill_solid(leds, 8, CRGB::Black);
+      fill_solid(leds, NUM_LEDS, CRGB::Black);
       if (timeClient.getMinutes() % 2 == 0)
       { //Show Current
         ledr[0] = CRGB::Red;
@@ -216,9 +217,10 @@ void loop()
         int i = w[0].current_Temp / 5;
         if (i < 0)
           i = 0;
-        else if (i > 8)
-          i = 8;
-        colorwaves(ledt, i, gCurrentPalette);
+        else if (i > 9)
+          i = 9;
+        fill_palette (ledt, i, 0,30, gCurrentPalette, BRIGHTNESS, LINEARBLEND);
+        //colorwaves(ledt, i, gCurrentPalette);
       }
       else
       { //Show Forecast
@@ -237,8 +239,15 @@ void loop()
         int i = w[1].current_Temp / 5;
         if (i < 0)
           i = 0;
-        colorwaves(ledt, i, gCurrentPalette);
+        else if (i > 9)
+          i = 9;
+        fill_palette (ledt, i, 0,30, gCurrentPalette, BRIGHTNESS, LINEARBLEND);
+        //colorwaves(ledt, i, gCurrentPalette);
       }
+      for(int i=0; i<9; i++){
+        ledt[i].nscale8_video(cubicwave8(i*5+(255-step)));
+      }
+      step++;
       FastLED.show();
     }
   }
