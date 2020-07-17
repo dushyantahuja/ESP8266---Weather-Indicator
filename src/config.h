@@ -2,7 +2,7 @@
 #define DATA_PIN D2
 #define UPDATES_PER_SECOND 60
 //#define DEVICE_NAME "TemperatureDisplay4" // Use deviceid.txt on SPIFFS instead
-const int FW_VERSION = 6;
+const int FW_VERSION = 8;
 const char* fwUrlBase = "http://ahuja.ws/firmware/TemperatureDisplay";
 #define GET_VARIABLE_NAME(Variable) (#Variable).cstr()
 #define BRIGHTNESS 120

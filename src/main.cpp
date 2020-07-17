@@ -128,12 +128,15 @@ void setup()
     ESP.restart();
   });*/
   httpServer.on("/config.html", HTTP_POST, send_configuration_html);
-  httpServer.on("/admin/config", HTTP_GET, send_weather_values_html);
+  httpServer.on("/admin/config", HTTP_GET, send_configuration_values_html);
   httpServer.on("/admin/weather", HTTP_GET, send_weather_values_html);
   httpServer.on("/autoupdate", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(200, "text/plain", "Checking for Updates ...\n");
     //delay(1000);
     checkForUpdates();
+    delay(1000);
+    request->send(200, "text/plain", "No Updates\n");
+    request->redirect("/");
   });
   httpServer.on("/update", HTTP_GET, [](AsyncWebServerRequest *request) { handleUpdate(request); });
   httpServer.on(
@@ -202,8 +205,8 @@ void loop()
       fill_solid(leds, NUM_LEDS, CRGB::Black);
       if (timeClient.getMinutes() % 2 == 0)
       { //Show Current
-        ledr[0] = CRGB::Red;
-        ledr[1] = CRGB::Black;
+        ledr[1] = CRGB::Red;
+        ledr[0] = CRGB::Black;
         if (w[0].weather == "snow")
           ledr[3] = CRGB::Violet;
         else if (w[0].rain >= 0.7)
@@ -214,9 +217,9 @@ void loop()
           ledr[6] = CRGB::LightGreen;
         else
           ledr[7] = CRGB::Green;
-        int i = w[0].current_Temp / 5;
-        if (i < 0)
-          i = 0;
+        int i = w[0].current_Temp / 5 +1;
+        if (i < 1)
+          i = 1;
         else if (i > 9)
           i = 9;
         fill_palette (ledt, i, 0,30, gCurrentPalette, BRIGHTNESS, LINEARBLEND);
@@ -224,8 +227,8 @@ void loop()
       }
       else
       { //Show Forecast
-        ledr[1] = CRGB::Red;
-        ledr[0] = CRGB::Black;
+        ledr[0] = CRGB::Red;
+        ledr[1] = CRGB::Black;
         if (w[1].weather == "snow")
           ledr[3] = CRGB::Violet;
         else if (w[1].rain >= 0.7)
@@ -236,9 +239,9 @@ void loop()
           ledr[6] = CRGB::LightGreen;
         else
           ledr[7] = CRGB::Green;
-        int i = w[1].current_Temp / 5;
-        if (i < 0)
-          i = 0;
+        int i = w[1].current_Temp / 5 + 1;
+        if (i < 1)
+          i = 1;
         else if (i > 9)
           i = 9;
         fill_palette (ledt, i, 0,30, gCurrentPalette, BRIGHTNESS, LINEARBLEND);
