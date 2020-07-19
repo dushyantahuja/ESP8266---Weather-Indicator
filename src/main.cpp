@@ -16,6 +16,8 @@ AsyncWebServer httpServer(80);
 DNSServer dns;
 
 #define DEBUG
+#define DEBUG_ESP_HTTP_CLIENT
+#define DEBUG_ESP_PORT Serial
 
 #include <NTPClient.h>
 
@@ -49,7 +51,6 @@ char DEVICE_NAME[255];
 #include "config.h"
 #include "Page_Admin.h"
 
-
 void setup()
 {
   // put your setup code here, to run once:
@@ -80,7 +81,7 @@ void setup()
   WiFi.setAutoConnect(true);
   WiFi.setSleepMode(WIFI_NONE_SLEEP);
   AsyncWiFiManager wifiManager(&httpServer, &dns);
-  wifiManager.setTimeout(180);
+  //wifiManager.setTimeout(180);
   if (!wifiManager.autoConnect(DEVICE_NAME))
   {
     delay(3000);
@@ -111,32 +112,32 @@ void setup()
     response->addHeader("Content-Encoding", "gzip");
     request->send(response);
   });
-  httpServer.on("/config.html", HTTP_GET, [](AsyncWebServerRequest *request) {
+  /*httpServer.on("/config.html", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/www/config.html", "text/html");
     //response->addHeader("Content-Encoding", "gzip");
     request->send(response);
   });
+  */
   httpServer.on("/reboot", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(200, "text/plain", "rebooting\n");
     delay(1000);
     ESP.restart();
   });
-  /*httpServer.on("/factory", HTTP_GET, [](AsyncWebServerRequest *request) {
+  httpServer.on("/factory", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(200, "text/plain", "reseting wifi settings\n");
+    AsyncWiFiManager wifiManager(&httpServer, &dns);
     delay(1000);
     wifiManager.resetSettings();
     ESP.restart();
-  });*/
-  httpServer.on("/config.html", HTTP_POST, send_configuration_html);
+  });
+  httpServer.on("/", HTTP_POST, send_configuration_html);
   httpServer.on("/admin/config", HTTP_GET, send_configuration_values_html);
   httpServer.on("/admin/weather", HTTP_GET, send_weather_values_html);
   httpServer.on("/autoupdate", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(200, "text/plain", "Checking for Updates ...\n");
-    //delay(1000);
-    checkForUpdates();
-    delay(1000);
-    request->send(200, "text/plain", "No Updates\n");
-    request->redirect("/");
+    AsyncWebServerResponse *response = request->beginResponse(200, "text/html", "<head><meta http-equiv=\"refresh\" content=\"5;url=/\"></head><body>Checking for updates - the display will restart automatically\n</body>");
+    //response->addHeader("Server","ESP Async Web Server");
+    autoupdate = true;
+    request->send(response);
   });
   httpServer.on("/update", HTTP_GET, [](AsyncWebServerRequest *request) { handleUpdate(request); });
   httpServer.on(
@@ -176,6 +177,10 @@ void loop()
 {
   timeClient.update();
   MDNS.update();
+  if(autoupdate){
+    checkForUpdates();
+    autoupdate = false;
+  }
   if (config.updatelocation)
   {
     if (config.autolocation)
@@ -191,7 +196,7 @@ void loop()
   }
   EVERY_N_MILLISECONDS(1000 / UPDATES_PER_SECOND)
   {
-    if (timeClient.getHours() >= 22 || timeClient.getHours() < 7)
+    if (timeClient.getHours() >= config.switch_off || timeClient.getHours() < config.switch_on)
     {
       fill_solid(leds, NUM_LEDS, CRGB::Black);
       FastLED.show();
@@ -200,7 +205,7 @@ void loop()
     {
       if (timeClient.getMinutes() == 0 && timeClient.getSeconds() == 0)
         getWeather(); //Get weather update every hour.
-      else if ((timeClient.getMinutes() % 5) == 0 && timeClient.getSeconds() == 0)
+      else if ((timeClient.getMinutes() % config.effects) == 0 && timeClient.getSeconds() == 0)
         effects();
       fill_solid(leds, NUM_LEDS, CRGB::Black);
       if (timeClient.getMinutes() % 2 == 0)
@@ -217,12 +222,12 @@ void loop()
           ledr[6] = CRGB::LightGreen;
         else
           ledr[7] = CRGB::Green;
-        int i = w[0].current_Temp / 5 +1;
+        int i = w[0].current_Temp / 5 + 1;
         if (i < 1)
           i = 1;
         else if (i > 9)
           i = 9;
-        fill_palette (ledt, i, 0,30, gCurrentPalette, BRIGHTNESS, LINEARBLEND);
+        fill_palette(ledt, i, 0, 30, gCurrentPalette, BRIGHTNESS, LINEARBLEND);
         //colorwaves(ledt, i, gCurrentPalette);
       }
       else
@@ -244,17 +249,19 @@ void loop()
           i = 1;
         else if (i > 9)
           i = 9;
-        fill_palette (ledt, i, 0,30, gCurrentPalette, BRIGHTNESS, LINEARBLEND);
+        fill_palette(ledt, i, 0, 30, gCurrentPalette, BRIGHTNESS, LINEARBLEND);
         //colorwaves(ledt, i, gCurrentPalette);
       }
-      for(int i=0; i<9; i++){
-        ledt[i].nscale8_video(cubicwave8(i*5+(255-step)));
+      for (int i = 0; i < 9; i++)
+      {
+        ledt[i].nscale8_video(cubicwave8(i * 5 + (255 - step)));
       }
       step++;
       FastLED.show();
     }
   }
-  if (timeClient.getHours() == 3 && timeClient.getMinutes() == 0 && timeClient.getSeconds() == 0){
+  if (timeClient.getHours() == 3 && timeClient.getMinutes() == 0 && timeClient.getSeconds() == 0)
+  {
     checkForUpdates();
     ESP.restart();
   }
@@ -333,14 +340,19 @@ void handleNotFound(AsyncWebServerRequest *request)
 void send_weather_values_html(AsyncWebServerRequest *request)
 {
   String values = "";
-  values += "latitude|" + String(config.latitude) + "|input\n";
-  values += "longitude|" + String(config.longitude) + "|input\n";
+  //values += "latitude|" + String(config.latitude) + "|input\n";
+  //values += "longitude|" + String(config.longitude) + "|input\n";
   values += "city|" + w[0].city + "|input\n";
   values += "weather|" + w[0].description + "|input\n";
   values += "temp|" + String(w[0].current_Temp) + "|input\n";
   values += "forecast|" + String(w[1].current_Temp) + "|input\n";
   if (config.autolocation)
-    values += "autolocation|true|chk\n";
+  { // Send updated lat / long
+    values += "latitude|" + String(config.latitude) + "|input\n";
+    values += "longitude|" + String(config.longitude) + "|input\n";
+  }
+  /*if (config.autolocation)
+    values += "autolocation|true|chk\n";*/
   request->send(200, "text/plain", values);
 }
 
@@ -349,7 +361,11 @@ void send_configuration_values_html(AsyncWebServerRequest *request)
   String values = "";
   values += "latitude|" + String(config.latitude) + "|input\n";
   values += "longitude|" + String(config.longitude) + "|input\n";
-  values += "city|" + w[0].city + "|input\n";
+  values += "switch_off|" + String(config.switch_off) + "|input\n";
+  values += "switch_on|" + String(config.switch_on) + "|input\n";
+  values += "effects|" + String(config.effects) + "|input\n";
+  values += "displayid|" + String(DEVICE_NAME) + "|div\n";
+  values += "city|" + w[0].city + "|div\n";
   if (config.autolocation)
     values += "autolocation|true|chk\n";
   request->send(200, "text/plain", values);
@@ -370,29 +386,49 @@ void send_configuration_html(AsyncWebServerRequest *request)
       config.updatelocation = true;
       //IPG.updateStatus(&I);
       //}
-      EEPROM.put(32, config.autolocation);
+      //EEPROM.put(32, config.autolocation);
     }
     else
     {
       config.autolocation = false;
       DEBUG_PRINT("Inside Else");
-      EEPROM.put(32, config.autolocation);
+      //EEPROM.put(32, config.autolocation);
       if (request->hasParam("latitude", true))
       {
         AsyncWebParameter *p = request->getParam("latitude", true);
         config.latitude = strtod(p->value().c_str(), NULL);
-        EEPROM.put(20, config.latitude);
+        //EEPROM.put(20, config.latitude);
       }
       if (request->hasParam("longitude", true))
       {
         AsyncWebParameter *p = request->getParam("longitude", true);
         config.longitude = strtod(p->value().c_str(), NULL);
-        EEPROM.put(28, config.longitude);
+        //EEPROM.put(28, config.longitude);
       }
       config.updatelocation = true;
     }
+    if (request->hasParam("switch_on", true))
+    {
+      AsyncWebParameter *p = request->getParam("switch_on", true);
+      config.switch_on = strtod(p->value().c_str(), NULL);
+      //EEPROM.put(20, config.latitude);
+    }
+    if (request->hasParam("switch_off", true))
+    {
+      AsyncWebParameter *p = request->getParam("switch_off", true);
+      config.switch_off = strtod(p->value().c_str(), NULL);
+      //EEPROM.put(20, config.latitude);
+    }
+    if (request->hasParam("effects", true))
+    {
+      AsyncWebParameter *p = request->getParam("effects", true);
+      config.effects = strtod(p->value().c_str(), NULL);
+      //EEPROM.put(20, config.latitude);
+    }
     DEBUG_PRINT("Save Config");
     saveConfig();
+    fill_solid(leds, NUM_LEDS, CRGB::Black);
+    FastLED.show();
     //getWeather();
   }
   //AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/www/config.html", "text/html");

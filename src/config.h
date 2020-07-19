@@ -2,8 +2,8 @@
 #define DATA_PIN D2
 #define UPDATES_PER_SECOND 60
 //#define DEVICE_NAME "TemperatureDisplay4" // Use deviceid.txt on SPIFFS instead
-const int FW_VERSION = 8;
-const char* fwUrlBase = "http://ahuja.ws/firmware/TemperatureDisplay";
+const int FW_VERSION = 11;
+const char *fwUrlBase = "http://ahuja.ws/firmware/TemperatureDisplay";
 #define GET_VARIABLE_NAME(Variable) (#Variable).cstr()
 #define BRIGHTNESS 120
 
@@ -36,6 +36,7 @@ CRGBArray<NUM_LEDS> leds;
 CRGBSet ledr(leds(0, 7));
 CRGBSet ledt(leds(8, NUM_LEDS));
 String message;
+boolean autoupdate = false;
 
 struct strConfig
 {
@@ -43,6 +44,9 @@ struct strConfig
   bool updatelocation = false;
   double latitude;
   double longitude;
+  int switch_off;
+  int switch_on;
+  int effects;
   //String City;
 } config;
 
@@ -50,10 +54,13 @@ bool saveConfig(bool defaultValues = false)
 {
   if (defaultValues)
   {
-    EEPROM.put(20, 0.00);
-    EEPROM.put(28, 0.00);
-    EEPROM.write(32, 1);
-    EEPROM.write(110, 5);
+    EEPROM.put(20, 0.00); // Latitude
+    EEPROM.put(28, 0.00); // Longitude
+    EEPROM.write(32, 1);  // AutoLocation
+    EEPROM.write(34, 22); // Switch Off
+    EEPROM.write(36, 7);  // Switch On
+    EEPROM.write(38, 5);  // Effects
+    EEPROM.write(110, 8);
     EEPROM.commit();
     //EEPROM.update();
     return true;
@@ -66,7 +73,10 @@ bool saveConfig(bool defaultValues = false)
       EEPROM.write(32, 1);
     else
       EEPROM.write(32, 0);
-    EEPROM.write(110, 5);
+    EEPROM.write(34, config.switch_off); // Switch Off
+    EEPROM.write(36, config.switch_on);  // Switch On
+    EEPROM.write(38, config.effects);    // Effects
+    EEPROM.write(110, 8);
     EEPROM.commit();
     //EEPROM.update();
     return true;
@@ -75,10 +85,13 @@ bool saveConfig(bool defaultValues = false)
 
 bool loadDefaults()
 {
-  if (EEPROM.read(110) != 5)
+  if (EEPROM.read(110) != 8)
   {
     config.autolocation = true;
-    saveConfig( true );
+    config.effects = 5;
+    config.switch_off = 22;
+    config.switch_on = 7;
+    saveConfig(true);
     DEBUG_PRINT("Defaults Loaded");
   }
   else
@@ -91,6 +104,9 @@ bool loadDefaults()
       config.autolocation = true;
     else
       config.autolocation = false;
+    config.switch_off = EEPROM.read(34); // Switch Off
+    config.switch_on = EEPROM.read(36);  // Switch On
+    config.effects = EEPROM.read(38);    // Effects every n minutes
     DEBUG_PRINT("EEPROM Loaded");
   }
   DEBUG_PRINT(String(config.autolocation));
@@ -230,41 +246,47 @@ void sendIP()
 
 //Modified using code from https://www.bakke.online/index.php/2017/06/02/self-updating-ota-firmware-for-esp8266/
 
-void checkForUpdates() {
+void checkForUpdates()
+{
   //String mac = getMAC();
-  String fwURL = String( fwUrlBase );
+  String fwURL = String(fwUrlBase);
   //fwURL.concat( mac );
   String fwVersionURL = fwURL;
-  fwVersionURL.concat( ".version" );
+  fwVersionURL.concat(".html");
 
-  Serial.println( "Checking for firmware updates." );
+  Serial.println("Checking for firmware updates.");
   //Serial.print( "MAC address: " );
   //Serial.println( mac );
-  Serial.print( "Firmware version URL: " );
-  Serial.println( fwVersionURL );
+  Serial.print("Firmware version URL: ");
+  Serial.println(fwVersionURL);
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    WiFiClient uclient;
+    HTTPClient uhttpClient;
+    uhttpClient.begin(uclient, fwVersionURL);
+    int httpCode = uhttpClient.GET();
+    Serial.println( uhttpClient.errorToString(httpCode) );
+    if (httpCode == 200)
+    {
+      String newFWVersion = uhttpClient.getString();
 
-  WiFiClient client;
-  HTTPClient httpClient;
-  httpClient.begin(client, fwVersionURL );
-  int httpCode = httpClient.GET();
-  if( httpCode == 200 ) {
-    String newFWVersion = httpClient.getString();
+      Serial.print("Current firmware version: ");
+      Serial.println(FW_VERSION);
+      Serial.print("Available firmware version: ");
+      Serial.println(newFWVersion);
 
-    Serial.print( "Current firmware version: " );
-    Serial.println( FW_VERSION );
-    Serial.print( "Available firmware version: " );
-    Serial.println( newFWVersion );
+      int newVersion = newFWVersion.toInt();
 
-    int newVersion = newFWVersion.toInt();
+      if (newVersion > FW_VERSION)
+      {
+        Serial.println("Preparing to update");
 
-    if( newVersion > FW_VERSION ) {
-      Serial.println( "Preparing to update" );
+        String fwImageURL = fwURL;
+        fwImageURL.concat(".bin");
+        t_httpUpdate_return ret = ESPhttpUpdate.update(uclient, fwImageURL);
 
-      String fwImageURL = fwURL;
-      fwImageURL.concat( ".bin" );
-      t_httpUpdate_return ret = ESPhttpUpdate.update( client, fwImageURL );
-
-      switch(ret) {
+        switch (ret)
+        {
         case HTTP_UPDATE_FAILED:
           Serial.printf("HTTP_UPDATE_FAILD Error (%d): %s", ESPhttpUpdate.getLastError(), ESPhttpUpdate.getLastErrorString().c_str());
           break;
@@ -276,15 +298,18 @@ void checkForUpdates() {
         case HTTP_UPDATE_OK:
           Serial.println("HTTP_UPDATE_OK");
           break;
+        }
+      }
+      else
+      {
+        Serial.println("Already on latest version");
       }
     }
-    else {
-      Serial.println( "Already on latest version" );
+    else
+    {
+      Serial.print("Firmware version check failed, got HTTP response code ");
+      Serial.println(httpCode);
     }
+    uhttpClient.end();
   }
-  else {
-    Serial.print( "Firmware version check failed, got HTTP response code " );
-    Serial.println( httpCode );
-  }
-  httpClient.end();
 }
