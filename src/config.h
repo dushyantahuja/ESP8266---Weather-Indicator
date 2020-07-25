@@ -2,7 +2,7 @@
 #define DATA_PIN D2
 #define UPDATES_PER_SECOND 60
 //#define DEVICE_NAME "TemperatureDisplay4" // Use deviceid.txt on SPIFFS instead
-const int FW_VERSION = 11;
+const int FW_VERSION = 16;
 const char *fwUrlBase = "http://ahuja.ws/firmware/TemperatureDisplay";
 #define GET_VARIABLE_NAME(Variable) (#Variable).cstr()
 #define BRIGHTNESS 120
@@ -27,7 +27,7 @@ void effects();
 void showTime(int hr, int mn, int sec);
 void handleUpdate(AsyncWebServerRequest *request);
 void handleDoUpdate(AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data, size_t len, bool final);
-void getWeather();
+void getWeather( boolean forecast = false);
 void send_configuration_html(AsyncWebServerRequest *request);
 void send_configuration_values_html(AsyncWebServerRequest *request);
 void send_weather_values_html(AsyncWebServerRequest *request);
@@ -60,7 +60,7 @@ bool saveConfig(bool defaultValues = false)
     EEPROM.write(34, 22); // Switch Off
     EEPROM.write(36, 7);  // Switch On
     EEPROM.write(38, 5);  // Effects
-    EEPROM.write(110, 8);
+    EEPROM.write(110, 9);
     EEPROM.commit();
     //EEPROM.update();
     return true;
@@ -76,7 +76,7 @@ bool saveConfig(bool defaultValues = false)
     EEPROM.write(34, config.switch_off); // Switch Off
     EEPROM.write(36, config.switch_on);  // Switch On
     EEPROM.write(38, config.effects);    // Effects
-    EEPROM.write(110, 8);
+    EEPROM.write(110, 9);
     EEPROM.commit();
     //EEPROM.update();
     return true;
@@ -85,7 +85,7 @@ bool saveConfig(bool defaultValues = false)
 
 bool loadDefaults()
 {
-  if (EEPROM.read(110) != 8)
+  if (EEPROM.read(110) != 9)
   {
     config.autolocation = true;
     config.effects = 5;

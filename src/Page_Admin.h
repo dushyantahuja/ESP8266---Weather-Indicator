@@ -32,18 +32,18 @@ const char PAGE_AdminMainPage[] PROGMEM = R"=====(
     </tr>
     <tr>
       <td align="right">Latitude</td>
-      <td><input type="number" id="latitude" name="latitude" value="" max = "90" min = "-90" style="width: 80px;" step="0.00001"></td>
+      <td><input type="number" id="latitude" name="latitude" value="" max = "90" min = "-90" style="width: 80px;" step="0.0001"></td>
     </tr>
     <tr>
       <td align="right">Longitude</td>
-      <td><input type="number" id="longitude" name="longitude" value="" max = "180" min = "-180" style="width: 80px;" step="0.00001"></td>
+      <td><input type="number" id="longitude" name="longitude" value="" max = "180" min = "-180" style="width: 80px;" step="0.0001"></td>
     </tr>
     <tr>
       <td colspan="2"><small>Values in the western and southern hemispheres are -ve</small></td>
     </tr>
     <tr><td align="right">Switch On (0-12)</td><td><input type="number" id="switch_on" name="switch_on" value="" min="0" max="12"></td></tr>
     <tr><td align="right">Switch Off (13-23)</td><td><input type="number" id="switch_off" name="switch_off" value="" min="13" max="23"></td></tr>
-    <tr><td align="right">Effects</td><td><input type="number" id="effects" name="effects" value="" min="0" max="59"></td></tr>
+    <tr><td align="right">Effects (0 to switch off)</td><td><input type="number" id="effects" name="effects" value="" min="0" max="59"></td></tr>
     <tr>
       <td colspan="2" align="center"><input type="submit" style="width:150px" class="btn btn--m btn--blue" value="Save">
       </td>
