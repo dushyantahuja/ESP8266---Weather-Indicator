@@ -53,6 +53,8 @@ const char PAGE_AdminMainPage[] PROGMEM = R"=====(
 <hr>
 <strong>Administration</strong>
 <hr>
+<a href="autoupdate" style="width:250px" class="btn btn--m btn--blue" >Check for New Firmware</a><br>
+<a href="factory" style="width:250px" class="btn btn--m btn--blue" >Factory Reset</a><br>
 <a href="update" style="width:250px" class="btn btn--m btn--blue" >Upload New Firmware</a><br>
 <small><div id="displayid" hidden></div>
 <p>Designed and created by Dushyant Ahuja (2020)</p>

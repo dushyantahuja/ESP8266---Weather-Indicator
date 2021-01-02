@@ -1,11 +1,11 @@
-#define NUM_LEDS 17
-#define DATA_PIN D2
+#define NUM_LEDS 30
+#define DATA_PIN 4
 #define UPDATES_PER_SECOND 60
 //#define DEVICE_NAME "TemperatureDisplay4" // Use deviceid.txt on SPIFFS instead
-const int FW_VERSION = 16;
+const int FW_VERSION = 25;
 const char *fwUrlBase = "http://ahuja.ws/firmware/TemperatureDisplay";
 #define GET_VARIABLE_NAME(Variable) (#Variable).cstr()
-#define BRIGHTNESS 120
+#define BRIGHTNESS 200
 
 #ifndef DEBUG_PRINT
 #ifdef DEBUG
@@ -40,10 +40,10 @@ boolean autoupdate = false;
 
 struct strConfig
 {
-  bool autolocation;
+  bool autolocation = false;
   bool updatelocation = false;
-  double latitude;
-  double longitude;
+  float latitude;
+  float longitude;
   int switch_off;
   int switch_on;
   int effects;
@@ -54,29 +54,41 @@ bool saveConfig(bool defaultValues = false)
 {
   if (defaultValues)
   {
-    EEPROM.put(20, 0.00); // Latitude
-    EEPROM.put(28, 0.00); // Longitude
-    EEPROM.write(32, 1);  // AutoLocation
+    //config.autolocation = true;
+    IPG.updateStatus(&I);
+    config.latitude = (float)I.latitude;   //51.49580; //
+    config.longitude = (float)I.longitude; //-0.22425; //
+    if(config.latitude == 0.0){
+      config.latitude = 51.49580; //
+      config.longitude = -0.22425; //
+    }
+    config.effects = 5;
+    config.switch_off = 22;
+    config.switch_on = 7;
+    EEPROM.put(80, config.latitude); // Latitude
+    EEPROM.put(88, config.longitude); // Longitude
+    //EEPROM.write(32, 0);  // AutoLocation
     EEPROM.write(34, 22); // Switch Off
     EEPROM.write(36, 7);  // Switch On
     EEPROM.write(38, 5);  // Effects
-    EEPROM.write(110, 9);
+    EEPROM.write(110, 25);
     EEPROM.commit();
     //EEPROM.update();
     return true;
   }
   else
   {
-    EEPROM.put(20, config.latitude);
-    EEPROM.put(28, config.longitude);
-    if (config.autolocation)
+    EEPROM.put(80, config.latitude);
+    EEPROM.put(88, config.longitude);
+    
+    /*if (config.autolocation)
       EEPROM.write(32, 1);
     else
-      EEPROM.write(32, 0);
+      EEPROM.write(32, 0);*/
     EEPROM.write(34, config.switch_off); // Switch Off
     EEPROM.write(36, config.switch_on);  // Switch On
     EEPROM.write(38, config.effects);    // Effects
-    EEPROM.write(110, 9);
+    EEPROM.write(110, 25);
     EEPROM.commit();
     //EEPROM.update();
     return true;
@@ -85,25 +97,25 @@ bool saveConfig(bool defaultValues = false)
 
 bool loadDefaults()
 {
-  if (EEPROM.read(110) != 9)
+  if (EEPROM.read(110) != 25)
   {
-    config.autolocation = true;
-    config.effects = 5;
-    config.switch_off = 22;
-    config.switch_on = 7;
     saveConfig(true);
     DEBUG_PRINT("Defaults Loaded");
   }
   else
   {
     DEBUG_PRINT("EEPROM Loading");
-    EEPROM.get(20, config.latitude);
-    EEPROM.get(28, config.longitude);
-    byte autolocation = EEPROM.read(32);
-    if (autolocation == 1)
-      config.autolocation = true;
-    else
-      config.autolocation = false;
+    EEPROM.get(80, config.latitude);
+    EEPROM.get(88, config.longitude);
+    if(config.latitude == 0.0 || isnan(config.latitude)){
+      config.latitude = 51.49580; //
+      config.longitude = -0.22425; //
+    }
+    //byte autolocation = EEPROM.read(32);
+    //if (autolocation == 1)
+    //  config.autolocation = true;
+    //else
+    //  config.autolocation = false;
     config.switch_off = EEPROM.read(34); // Switch Off
     config.switch_on = EEPROM.read(36);  // Switch On
     config.effects = EEPROM.read(38);    // Effects every n minutes

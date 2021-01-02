@@ -28,7 +28,7 @@ NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", 0, 360000); //19800
 
 //#include <ArduinoJson.h>
 #include <IPGeolocation.h>
-String IPGeoKey = "b294be4d4a3044d9a39ccf42a564592b";
+String IPGeoKey = "2a7b4f6d9ff14fd895eef23cc48da063";
 IPGeolocation IPG(IPGeoKey);
 IPGeo I;
 
@@ -126,7 +126,9 @@ void setup()
   httpServer.on("/factory", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(200, "text/plain", "reseting wifi settings\n");
     AsyncWiFiManager wifiManager(&httpServer, &dns);
-    delay(1000);
+    //delay(1000);
+    EEPROM.write(110, 99);
+    EEPROM.commit();
     wifiManager.resetSettings();
     ESP.restart();
   });
@@ -152,15 +154,6 @@ void setup()
   sendIP();
   EEPROM.begin(512);
   loadDefaults();
-
-  if (config.autolocation)
-  {
-    DEBUG_PRINT("Inside Setup Autolocation");
-    IPG.updateStatus(&I);
-    DEBUG_PRINT(I.city);
-    config.latitude = I.latitude;   //51.49580; //
-    config.longitude = I.longitude; //-0.22425; //
-  }
   getWeather();
   yield();
   getWeather(true);
@@ -178,7 +171,8 @@ void loop()
 {
   timeClient.update();
   MDNS.update();
-  if(autoupdate){
+  if (autoupdate)
+  {
     checkForUpdates();
     autoupdate = false;
   }
@@ -187,8 +181,8 @@ void loop()
     if (config.autolocation)
     {
       IPG.updateStatus(&I);
-      config.latitude = I.latitude;   //51.49580; //
-      config.longitude = I.longitude; //-0.22425; //
+      config.latitude = (float)I.latitude;   //51.49580; //
+      config.longitude = (float)I.longitude; //-0.22425; //
     }
     yield();
     config.updatelocation = false;
@@ -209,7 +203,7 @@ void loop()
         getWeather(); //Get weather update every hour.
       if (timeClient.getMinutes() == 5 && timeClient.getSeconds() == 0)
         getWeather(true); //Get forecast update every hour.
-      else if ((timeClient.getMinutes() % config.effects) == 0 && timeClient.getSeconds() == 0 && config.effects !=0)
+      else if ((timeClient.getMinutes() % config.effects) == 0 && timeClient.getSeconds() == 0 && config.effects != 0)
         effects();
       fill_solid(leds, NUM_LEDS, CRGB::Black);
       if (timeClient.getMinutes() % 2 == 0 || w[1].weather == "")
@@ -267,39 +261,48 @@ void loop()
   if (timeClient.getHours() == 3 && timeClient.getMinutes() == 0 && timeClient.getSeconds() == 0)
   {
     checkForUpdates();
+    /*if (config.autolocation)
+    {
+      DEBUG_PRINT("Inside Setup Autolocation");
+      IPG.updateStatus(&I);
+      DEBUG_PRINT(I.city);
+      config.latitude = I.latitude;   //51.49580; //
+      config.longitude = I.longitude; //-0.22425; //
+    }*/
     ESP.restart();
   }
   yield();
   FastLED.show();
 }
 
-void getWeather( boolean forecast)
+void getWeather(boolean forecast)
 {
-  if(!forecast) message = "";
+  if (!forecast)
+    message = "";
   //for (int i = 0; i < 2; i++)
   //{
-    int i = (forecast?1:0);
-    w[i].description = "";
-    DEBUG_PRINT("UnixTime: " + String(timeClient.getEpochTime()));
-    DEBUG_PRINT("Co-ordinates: " + String(config.latitude) + ":" + String(config.longitude));
-    OpenWeather ds(DKey, config.latitude, config.longitude, forecast);
-    //ds.updateURL(DKey, config.latitude, config.longitude, timeClient.getEpochTime() + i * 3600 * 3); // Get data for every 3 hours
-    ds.updateStatus(&w[i]);
-    DEBUG_PRINT("Temp: ");
-    DEBUG_PRINT(String(w[i].current_Temp));
-    DEBUG_PRINT("Rain: ");
-    DEBUG_PRINT(String(w[i].rain));
-    DEBUG_PRINT("Icon: ");
-    DEBUG_PRINT(w[i].weather);
-    DEBUG_PRINT(ESP.getFreeHeap());
-    message += "---------------\n";
-    //message += ds.getResponse();
-    message += "Current Temperature: " + String(w[i].current_Temp) + "\n";
-    message += "Rainfall Probability: " + String(w[i].rain) + "\n";
-    message += "Weather: " + w[i].weather + "\n";
-    message += "---------------\n";
-    yield();
-    //delay(500);
+  int i = (forecast ? 1 : 0);
+  w[i].description = "";
+  DEBUG_PRINT("UnixTime: " + String(timeClient.getEpochTime()));
+  DEBUG_PRINT("Co-ordinates: " + String(config.latitude) + ":" + String(config.longitude));
+  OpenWeather ds(DKey, config.latitude, config.longitude, forecast);
+  //ds.updateURL(DKey, config.latitude, config.longitude, timeClient.getEpochTime() + i * 3600 * 3); // Get data for every 3 hours
+  ds.updateStatus(&w[i]);
+  DEBUG_PRINT("Temp: ");
+  DEBUG_PRINT(String(w[i].current_Temp));
+  DEBUG_PRINT("Rain: ");
+  DEBUG_PRINT(String(w[i].rain));
+  DEBUG_PRINT("Icon: ");
+  DEBUG_PRINT(w[i].weather);
+  DEBUG_PRINT(ESP.getFreeHeap());
+  message += "---------------\n";
+  //message += ds.getResponse();
+  message += "Current Temperature: " + String(w[i].current_Temp) + "\n";
+  message += "Rainfall Probability: " + String(w[i].rain) + "\n";
+  message += "Weather: " + w[i].weather + "\n";
+  message += "---------------\n";
+  yield();
+  //delay(500);
   //}
 }
 
@@ -386,8 +389,8 @@ void send_configuration_html(AsyncWebServerRequest *request)
     DEBUG_PRINT("Has Arguments");
     for (uint8_t i = 0; i < request->params(); i++)
     {
-    AsyncWebParameter *p = request->getParam(i);
-    DEBUG_PRINT(p->name() + ": " + p->value() + "\n");
+      AsyncWebParameter *p = request->getParam(i);
+      DEBUG_PRINT(p->name() + ": " + p->value() + "\n");
     }
     if (request->hasParam("autolocation", true))
     {
@@ -420,9 +423,9 @@ void send_configuration_html(AsyncWebServerRequest *request)
         AsyncWebParameter *p = request->getParam("longitude", true);
         DEBUG_PRINT("Longitude:" + p->value());
         //char *dummy;
-        DEBUG_PRINT(p->value().toDouble());
+        DEBUG_PRINT(p->value().toFloat());
         //DEBUG_PRINT(strtof(p->value().c_str(),&dummy));
-        config.longitude = p->value().toDouble(); //strtof(p->value().c_str(), &dummy);
+        config.longitude = p->value().toFloat(); //strtof(p->value().c_str(), &dummy);
         //EEPROM.put(28, config.longitude);
       }
       config.updatelocation = true;
